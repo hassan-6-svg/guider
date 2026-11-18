@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aman Commitment & Focus</title>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#10b981" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #1e293b;
+      padding: 28px;
+      border-radius: 16px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      text-align: center;
+    }
+    h1 { color: #10b981; margin-top: 0; font-size: 1.5rem; }
+    p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.5; }
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    input, select { background: #0f172a; color: #fff; }
+    button {
+      background: #10b981;
+      color: #0f172a;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover { background: #059669; }
+    .timer {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin: 20px 0;
+      color: #34d399;
+      font-variant-numeric: tabular-nums;
+    }
+    .hidden { display: none; }
+    .error { color: #f87171; font-size: 0.85rem; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Aman Commitment Shield</h1>
+
+    <!-- Setup View -->
+    <div id="setupView">
+      <p>Commit to staying away from harmful habits. Once locked, you must wait out the timer or enter your accountability password.</p>
+      <label for="hours">Commitment Duration:</label>
+      <select id="hours">
+        <option value="5">5 Hours</option>
+        <option value="6">6 Hours</option>
+        <option value="8">8 Hours</option>
+        <option value="10">10 Hours</option>
+      </select>
+      <input type="password" id="setPassword" placeholder="Set Accountability Password" />
+      <button onclick="startLock()">Start Commitment Lock</button>
+      <div id="setupError" class="error"></div>
+    </div>
+
+    <!-- Active Lock View -->
+    <div id="lockView" class="hidden">
+      <p><strong>Stay Strong.</strong> Remember your promise and keep your focus pure.</p>
+      <div class="timer" id="countdown">00:00:00</div>
+      <input type="password" id="unlockPassword" placeholder="Enter password to unlock early" />
+      <button onclick="unlockEarly()">Unlock Early</button>
+      <div id="unlockError" class="error"></div>
+    </div>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+
+    const STORAGE_KEY = 'aman_lock_state';
+
+    function startLock() {
+      const hours = parseInt(document.getElementById('hours').value, 10);
+      const pass = document.getElementById('setPassword').value.trim();
+      const err = document.getElementById('setupError');
+
+      if (pass.length < 4) {
+        err.textContent = 'Please set a password of at least 4 characters.';
+        return;
+      }
+
+      const endTime = Date.now() + hours * 60 * 60 * 1000;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ endTime, pass }));
+      err.textContent = '';
+      render();
+    }
+
+    function unlockEarly() {
+      const state = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      const input = document.getElementById('unlockPassword').value;
+      const err = document.getElementById('unlockError');
+
+      if (state && input === state.pass) {
+        localStorage.removeItem(STORAGE_KEY);
+        document.getElementById('unlockPassword').value = '';
+        err.textContent = '';
+        render();
+      } else {
+        err.textContent = 'Incorrect password. Wait for the timer to finish.';
+      }
+    }
+
+    function render() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const setupView = document.getElementById('setupView');
+      const lockView = document.getElementById('lockView');
+
+      if (!raw) {
+        setupView.classList.remove('hidden');
+        lockView.classList.add('hidden');
+        return;
+      }
+
+      const state = JSON.parse(raw);
+      const remaining = state.endTime - Date.now();
+
+      if (remaining <= 0) {
+        localStorage.removeItem(STORAGE_KEY);
+        setupView.classList.remove('hidden');
+        lockView.classList.add('hidden');
+        return;
+      }
+
+      setupView.classList.add('hidden');
+      lockView.classList.remove('hidden');
+
+      const hrs = String(Math.floor(remaining / 3600000)).padStart(2, '0');
+      const mins = String(Math.floor((remaining % 3600000) / 60000)).padStart(2, '0');
+      const secs = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0');
+      document.getElementById('countdown').textContent = `${hrs}:${mins}:${secs}`;
+    }
+
+    setInterval(render, 1000);
+    render();
+  </script>
+</body>
+</html>
